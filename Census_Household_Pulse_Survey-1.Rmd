@@ -27,6 +27,7 @@ The code below will download and unzip the data.
 
 ```{r}
 library(forcats)
+library(scales)
 library(srvyr)
 library(tidyverse)
 ```
@@ -53,7 +54,7 @@ survey_puf <- as_survey_rep(puf_w_weights, id = SCRAM, weights = PWEIGHT,
                             repweights = all_of(wgts), type = "Fay", rho = 0.5005)
 ```
 
-And now we should be all set to start analyzing the data. First, let's make sure we know what we are doing by estimating something that already appears in the Detailed Tables. Specifically, we'll look at the [Housing 2b table](https://www2.census.gov/programs-surveys/demo/tables/hhp/2020/wk1/housing2b_week1.xlsx). The table states that there are **8,918,242** persons in renter occupied housing units with No Confidence in the Ability to Pay Next Month's Rent, **12,571,649** with slight confidence, and so on. We can replicate these numbers, adding the category IDs from the data
+And now we should be all set to start analyzing the data. First, let's make sure we know what we are doing by estimating something that already appears in the Detailed Tables. Specifically, we'll look at the [Housing 2b table](https://www2.census.gov/programs-surveys/demo/tables/hhp/2020/wk1/housing2b_week1.xlsx). The table states that there are **8,918,242** persons in renter occupied housing units with No Confidence in the Ability to Pay Next Month's Rent, **12,571,649** with slight confidence, and so on. We can replicate these numbers, adding the category IDs from the data.
 
 ```{r, results= 'markup'}
 renters_payment_confidence <- 
@@ -106,9 +107,16 @@ anxiety_for_renters$ANXIOUS <- factor(anxiety_for_renters$ANXIOUS, labels = c("M
                                               "More than half the days",
                                               "Nearly every day"))
 
+
 ggplot(anxiety_for_renters, aes(x = ANXIOUS, y = proportion, fill = Group)) +
   geom_bar(stat = "identity", position = "dodge") +
-  theme(axis.text.x = element_text(angle = 45))
+  theme(axis.text.x = element_text(angle = 45)) +
+  xlab("Over the last 7 days, how often have you been bothered by the
+       following problems: Feeling nervous, anxious, or on edge? Would you
+       say not at all, several days, more than half the days, or nearly every
+       day?") +
+  ylab("Share of Respondants") + 
+  scale_y_continuous(labels = scales::percent)
 ```
 
 
@@ -129,14 +137,25 @@ tenure_w_missing$TENURE <- factor(tenure_w_missing$TENURE, labels =
                             "Owned with a mortgage",
                             "Rented",
                             "Occupied without payment of rent"))
+tenure_w_missing$proportion <- scales::label_percent()(tenure_w_missing$proportion)
 
-tenure_w_missing
+tenure_w_missing[,1:2]
 ```
+We can see from below that even though tenure is missing for a large share of respondants, the proportion of owners and renters appears in line with that reported in the [American Community Survey](https://data.census.gov/cedsci/table?q=b25003&tid=ACSDT1Y2019.B25003).  
+
 ```{r, results= 'markup'}
 tenure_no_missing <- survey_puf %>% 
   filter(WEEK == "1" & TENURE != "-88" & TENURE != "-99") %>% 
   group_by(TENURE) %>% 
   summarise(proportion = survey_mean())
-tenure_no_missing
+
+tenure_no_missing$TENURE <- factor(tenure_no_missing$TENURE, labels = 
+                         c( "Owned free and clear",
+                            "Owned with a mortgage",
+                            "Rented",
+                            "Occupied without payment of rent"))
+tenure_no_missing$proportion <- scales::label_percent()(tenure_no_missing$proportion)
+
+tenure_no_missing[,1:2]
 ```
 
